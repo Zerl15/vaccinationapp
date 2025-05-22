@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Vaccination & Inventory Management</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; }
+    h1 { text-align: center; }
+    button { margin: 5px; padding: 10px 20px; cursor: pointer; }
+    button.active { background-color: #007BFF; color: white; }
+    section { margin-top: 20px; }
+    label { display: block; margin-top: 10px; }
+    select, input[type="text"], input[type="number"] { width: 100%; padding: 5px; margin-top: 5px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+    th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
+    th { background-color: #f0f0f0; }
+    #totalVaccinated { font-weight: bold; margin-top: 10px; }
+  </style>
+</head>
+<body>
+
+  <h1>Vaccination & Vaccine Stock Management</h1>
+
+  <div>
+    <button id="btnVaccination">Record Vaccination</button>
+    <button id="btnInventory">View Inventory</button>
+    <button id="btnDashboard">View Dashboard</button>
+  </div>
+
+  <!-- Vaccination Form -->
+  <section id="vaccinationForm" style="display:none;">
+    <h2>Record Vaccination</h2>
+    <label for="childName">Child's Name:</label>
+    <input type="text" id="childName" placeholder="Enter child's full name" />
+
+    <label for="sex">Sex:</label>
+    <select id="sex">
+      <option value="">-- Select Sex --</option>
+      <option value="Male">Male</option>
+      <option value="Female">Female</option>
+    </select>
+
+    <label for="age">Age:</label>
+    <select id="age">
+      <option value="">-- Select Age Group --</option>
+      <option value="0-5 months">0-5 months</option>
+      <option value="6-11 months">6-11 months</option>
+      <option value="12-23 months">12-23 months</option>
+      <option value="24-59 months">24-59 months</option>
+    </select>
+
+    <label for="regionSelect">Region:</label>
+    <select id="regionSelect">
+      <option value="">-- Select Region --</option>
+    </select>
+
+    <label for="provinceSelect">Province:</label>
+    <select id="provinceSelect">
+      <option value="">-- Select Province --</option>
+    </select>
+
+    <label for="districtSelect">District:</label>
+    <select id="districtSelect">
+      <option value="">-- Select District --</option>
+    </select>
+
+    <label for="facilitySelect">Facility:</label>
+    <select id="facilitySelect">
+      <option value="">-- Select Facility --</option>
+    </select>
+
+    <button id="submitVaccination">Submit Vaccination Record</button>
+  </section>
+
+  <!-- Inventory Table -->
+  <section id="inventoryForm" style="display:none;">
+    <h2>Vaccine Stock Inventory</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Facility</th>
+          <th>District</th>
+          <th>Province</th>
+          <th>Region</th>
+          <th>Stock Left</th>
+        </tr>
+      </thead>
+      <tbody id="stockTableBody"></tbody>
+    </table>
+  </section>
+
+  <!-- Dashboard with Filters -->
+  <section id="dashboard" style="display:none;">
+    <h2>Vaccination Dashboard</h2>
+
+    <label for="filterSex">Filter by Sex:</label>
+    <select id="filterSex">
+      <option value="">-- All Sexes --</option>
+      <option value="Male">Male</option>
+      <option value="Female">Female</option>
+    </select>
+
+    <label for="filterAge">Filter by Age:</label>
+    <select id="filterAge">
+      <option value="">-- All Ages --</option>
+      <option value="0-5 months">0-5 months</option>
+      <option value="6-11 months">6-11 months</option>
+      <option value="12-23 months">12-23 months</option>
+      <option value="24-59 months">24-59 months</option>
+    </select>
+
+    <label for="filterRegion">Filter by Region:</label>
+    <select id="filterRegion">
+      <option value="">-- All Regions --</option>
+    </select>
+
+    <label for="filterProvince">Filter by Province:</label>
+    <select id="filterProvince">
+      <option value="">-- All Provinces --</option>
+    </select>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Child Name</th>
+          <th>Sex</th>
+          <th>Age</th>
+          <th>Region</th>
+          <th>Province</th>
+          <th>District</th>
+          <th>Facility</th>
+        </tr>
+      </thead>
+      <tbody id="dashboardBody"></tbody>
+    </table>
+
+    <div id="totalVaccinated">Total Vaccinated: 0</div>
+  </section>
+
+  <script>
+    // Initial vaccine stock per facility
+    const INITIAL_STOCK = 500;
+
+    // Hardcoded hierarchical data for PNG geography and facilities
+    const data = {
+      "Highlands": {
+        "Eastern Highlands": {
+          "Goroka District": ["Goroka Hospital", "Goroka Clinic"],
+          "Kainantu District": ["Kainantu Hospital"]
+        },
+        "Hela": {
+          "Tari District": ["Tari Hospital"]
+        }
+      },
+      "Momase": {
+        "Madang": {
+          "Madang District": ["Madang Hospital"]
+        },
+        "Morobe": {
+          "Lae District": ["Lae Hospital", "Lae Clinic"]
+        }
+      }
+    };
+
+    // Variables to hold references
+    const regionSelect = document.getElementById('regionSelect');
+    const provinceSelect = document.getElementById('provinceSelect');
+    const districtSelect = document.getElementById('districtSelect');
+    const facilitySelect = document.getElementById('facilitySelect');
+
+    const stockTableBody = document.getElementById('stockTableBody');
+    const dashboardBody = document.getElementById('dashboardBody');
+
+    const filterSex = document.getElementById('filterSex');
+    const filterAge = document.getElementById('filterAge');
+    const filterRegion = document.getElementById('filterRegion');
+    const filterProvince = document.getElementById('filterProvince');
+
+    const vaccinationForm = document.getElementById('vaccinationForm');
+    const inventoryForm = document.getElementById('inventoryForm');
+    const dashboard = document.getElementById('dashboard');
+
+    const btnVaccination = document.getElementById('btnVaccination');
+    const btnInventory = document.getElementById('btnInventory');
+    const btnDashboard = document.getElementById('btnDashboard');
+
+    const totalVaccinated = document.getElementById('totalVaccinated');
+
+    // Vaccine stock object {facility: stock}
+    const vaccineStock = {};
+
+    // Vaccination records array
+    const vaccinationRecords = [];
+
+    // Utility to clear select options except first
+    function clearSelectOptions(selectElement) {
+      while (selectElement.options.length > 1) {
+        selectElement.remove(1);
+      }
+    }
+
+    // Populate select dropdown with given values
+    function populateSelect(selectElement, values) {
+      values.forEach(v => {
+        const option = document.createElement('option');
+        option.value = v;
+        option.textContent = v;
+        selectElement.appendChild(option);
+      });
+    }
+
+    // Populate Regions dropdown for form
+    function populateRegions() {
+      clearSelectOptions(regionSelect);
+      populateSelect(regionSelect, Object.keys(data));
+    }
+
+    // Populate Provinces based on selected Region
+    function populateProvinces(region) {
+      clearSelectOptions(provinceSelect);
+      clearSelectOptions(districtSelect);
+      clearSelectOptions(facilitySelect);
+      if(region && data[region]) {
+        populateSelect(provinceSelect, Object.keys(data[region]));
+      }
+    }
+
+    // Populate Districts based on Region and Province
+    function populateDistricts(region, province) {
+      clearSelectOptions(districtSelect);
+      clearSelectOptions(facilitySelect);
+      if(region && province && data[region][province]) {
+        populateSelect(districtSelect, Object.keys(data[region][province]));
+      }
+    }
+
+    // Populate Facilities based on Region, Province, District
+    function populateFacilities(region, province, district) {
+      clearSelectOptions(facilitySelect);
+      if(region && province && district && data[region][province][district]) {
+        populateSelect(facilitySelect, data[region][province][district]);
+      }
+    }
+
+    // Initialize cascading selects event listeners for form
+    regionSelect.addEventListener('change', () => {
+      populateProvinces(regionSelect.value);
+    });
+
+    provinceSelect.addEventListener('change', () => {
+      populateDistricts(regionSelect.value, provinceSelect.value);
+    });
+
+    districtSelect.addEventListener('change', () => {
+      populateFacilities(regionSelect.value, provinceSelect.value, districtSelect.value);
+    });
+
+    // Inventory filter cascading dropdowns
+    function populateFilterRegions() {
+      clearSelectOptions(filterRegion);
+      populateSelect(filterRegion, Object.keys(data));
+    }
+
+    function populateFilterProvinces(region) {
+      clearSelectOptions(filterProvince);
+      if(region && data[region]) {
+        populateSelect(filterProvince, Object.keys(data[region]));
+      }
+    }
+
+    filterRegion.addEventListener('change', () => {
+      populateFilterProvinces(filterRegion.value);
+      updateDashboardTable();
+    });
+
+    filterProvince.addEventListener('change', () => {
+      updateDashboardTable();
+    });
+
+    filterSex.addEventListener('change', updateDashboardTable);
+    filterAge.addEventListener('change', updateDashboardTable);
+
+    // Initialize filter dropdowns
+    populateFilterRegions();
+
+    // Initialize form cascading dropdowns
+    populateRegions();
+
+    // Show/hide sections based on button clicks
+    function showSection(section) {
+      vaccinationForm.style.display = 'none';
+      inventoryForm.style.display = 'none';
+      dashboard.style.display = 'none';
+
+      btnVaccination.classList.remove('active');
+      btnInventory.classList.remove('active');
+      btnDashboard.classList.remove('active');
+
+      if(section === 'form') {
+        vaccinationForm.style.display = 'block';
+        btnVaccination.classList.add('active');
+      } else if(section === 'inventory') {
+        inventoryForm.style.display = 'block';
+        btnInventory.classList.add('active');
+        renderInventoryTable();
+      } else if(section === 'dashboard') {
+        dashboard.style.display = 'block';
+        btnDashboard.classList.add('active');
+        updateDashboardTable();
+      }
+    }
+
+    btnVaccination.addEventListener('click', () => showSection('form'));
+    btnInventory.addEventListener('click', () => showSection('inventory'));
+    btnDashboard.addEventListener('click', () => showSection('dashboard'));
+
+    // Default view
+    showSection('inventory');
+
+    // Initialize vaccine stock at 500 per facility
+    function initializeVaccineStock() {
+      for(const region in data) {
+        for(const province in data[region]) {
+          for(const district in data[region][province]) {
+            for(const facility of data[region][province][district]) {
+              vaccineStock[facility] = INITIAL_STOCK;
+            }
+          }
+        }
+      }
+    }
+    initializeVaccineStock();
+
+    // Render inventory table
+    function renderInventoryTable() {
+      stockTableBody.innerHTML = '';
+      for(const region in data) {
+        for(const province in data[region]) {
+          for(const district in data[region][province]) {
+            for(const facility of data[region][province][district]) {
+              const row = document.createElement('tr');
+              row.innerHTML = `
+                <td>${facility}</td>
+                <td>${district}</td>
+                <td>${province}</td>
+                <td>${region}</td>
+                <td>${vaccineStock[facility]}</td>
+              `;
+              stockTableBody.appendChild(row);
+            }
+          }
+        }
+      }
+    }
+
+    // Submit vaccination record handler
+    document.getElementById('submitVaccination').addEventListener('click', () => {
+      const childName = document.getElementById('childName').value.trim();
+      const sex = document.getElementById('sex').value;
+      const age = document.getElementById('age').value;
+      const region = regionSelect.value;
+      const province = provinceSelect.value;
+      const district = districtSelect.value;
+      const facility = facilitySelect.value;
+
+      if(!childName || !sex || !age || !region || !province || !district || !facility) {
+        alert('Please fill in all required fields.');
+        return;
+      }
+
+      if(vaccineStock[facility] <= 0) {
+        alert(`No vaccine stock left at ${facility}.`);
+        return;
+      }
+
+      // Deduct one vaccine from stock
+      vaccineStock[facility]--;
+
+      // Add new vaccination record
+      vaccinationRecords.push({
+        childName,
+        sex,
+        age,
+        region,
+        province,
+        district,
+        facility,
+        date: new Date()
+      });
+
+      alert(`Vaccination recorded for ${childName} at ${facility}.`);
+
+      // Reset form
+      document.getElementById('childName').value = '';
+      document.getElementById('sex').value = '';
+      document.getElementById('age').value = '';
+      regionSelect.value = '';
+      clearSelectOptions(provinceSelect);
+      clearSelectOptions(districtSelect);
+      clearSelectOptions(facilitySelect);
+
+      // Update views if visible
+      if(inventoryForm.style.display === 'block') renderInventoryTable();
+      if(dashboard.style.display === 'block') updateDashboardTable();
+    });
+
+    // Update dashboard table with applied filters
+    function updateDashboardTable() {
+      const sexFilter = filterSex.value;
+      const ageFilter = filterAge.value;
+      const regionFilter = filterRegion.value;
+      const provinceFilter = filterProvince.value;
+
+      const filteredRecords = vaccinationRecords.filter(record => {
+        if(sexFilter && record.sex !== sexFilter) return false;
+        if(ageFilter && record.age !== ageFilter) return false;
+        if(regionFilter && record.region !== regionFilter) return false;
+        if(provinceFilter && record.province !== provinceFilter) return false;
+        return true;
+      });
+
+      dashboardBody.innerHTML = '';
+      filteredRecords.forEach(record => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+          <td>${record.childName}</td>
+          <td>${record.sex}</td>
+          <td>${record.age}</td>
+          <td>${record.region}</td>
+          <td>${record.province}</td>
+          <td>${record.district}</td>
+          <td>${record.facility}</td>
+        `;
+        dashboardBody.appendChild(row);
+      });
+
+      totalVaccinated.textContent = `Total Vaccinated: ${filteredRecords.length}`;
+    }
+  </script>
+
+</body>
+</html>
